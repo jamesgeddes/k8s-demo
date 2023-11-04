@@ -26,6 +26,9 @@ approach means that you have one place to store all parameters, regardless of th
 level, which helps to mitigate the risk of human error. The downside is that this may be more 
 expensive than having separate secret and parameter stores.
 
+Here, we have just gone with HCP Vault Secrets, however, in a production environment you may want to select a
+product that is not in beta.
+
 ## Short-lived secrets
 Long-lived secrets, ones that are valid for months, years or just forever, are often a security 
 risk as they are still useful when they are inevitably leaked. Using short-lived secrets, ones 
@@ -51,7 +54,36 @@ to be entirely K8s driven.
 
 ## Separate CI and CD
 Keep CI and CD separate. Using the same tool for CI and CD can cause difficulties.
-  Read the [CI](https://amzn.to/3ZB1u6V) and [CD](https://amzn.to/3kflHyU) books.
+Read the [CI](https://amzn.to/3ZB1u6V) and [CD](https://amzn.to/3kflHyU) books. Here, we have used GitHub actions for
+simplicity, however,
+ideally one would use different tools.
+
+## Break down jobs
+
+On the note of separating CI & CD, here, all of the things are in the one workflow to ensure that everything is set
+up automatically. In a production environment, this might not be as important, since the first run only happens once.
+As such, you may wish to separate the infra and the code workflows.
+
+## YAML Injection
+
+Here, some YAML files use value injection to ensure portability. In a production environment, this may not be as
+important as transparency, security and complexity. Hard coding values _is_ sometimes OK.
+
+## Multirepo?
+
+For the sake of simplicity, everything is in one repo. In a production environment, you should decide whether the
+monorepo or multirepo model is best for you. For example, [Uber tried both](https://youtu.be/lV8-1S28ycM).
+
+## Linting
+
+Code linting has not been included thus far as, while it adds readability, it does not add functionality. In a
+production environment, all code should be linted during CI from the outset.
+
+## Don't install every time
+
+On the note of CI, the GitHub Actions workflows currently install tools every time.
+This is inefficient and, particularly in a production environment, this can get expensive.
+Ideally one would build images that contain all the required tools.
 
 ## Workspaces
 Use Terraform workspace best practices.
