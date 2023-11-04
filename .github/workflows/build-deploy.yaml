@@ -1,0 +1,135 @@
+name: Build, scan & publish all of the things.
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  prepare-vars:
+    # Prepare the variables that will be required by subsequent jobs
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: 'services'
+      - name: Set env variables
+        run: |
+          {
+            echo "TF_VAR_repo_owner=$(echo ${{ github.repository_owner }}"
+            echo "TF_VAR_dockerhub_namespace=$(echo ${{ github.repository_owner }}"
+            echo "TF_VAR_project=$(echo ${{ github.event.repository.name }}"
+            echo "TF_VAR_ARGOCD_ADMIN_PASSWORD=$(echo ${{ secrets.TF_VAR_ARGOCD_ADMIN_PASSWORD }}"
+            echo "TF_VAR_services=$(ls services)"
+            echo "REPO=$(echo ${{ github.repository }}"
+          } >> $GITHUB_ENV
+      - name: Set matrix for next job
+        id: set-matrix
+        run: echo "::set-output name=matrix::${{ env.TF_VAR_services }}"
+
+
+  build-infra:
+    # Build the infra that the services will need to operate
+    needs: prepare-vars
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            terraform
+            argocd
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.6.0"
+
+      - name: Replace Variables in ApplicationSet File
+        run: envsubst < argocd/application-set-template.yaml > argocd/application-set.yaml
+
+
+      - name: Run Terraform plan
+        run: |
+          cd terraform
+          terraform init
+          terraform plan -no-color -out=tfplan
+          terraform show -no-color -json tfplan > tfplan.json
+
+      - name: Test Terraform plan
+        uses: instrumenta/conftest-action@master
+        with:
+          files: terraform/tfplan.json
+
+      - name: Apply Terraform plan
+        run: |
+          terraform apply terraform/tfplan
+
+  build-services:
+    # Build the containers that will run the services
+    needs: build-infra
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{fromJson(needs.prepare.outputs.matrix)}}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: 'services/${{ matrix.service }}'
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version-file: 'services/.python-version'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r services/${{ matrix.service }}/requirements.txt
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit
+        run: bandit -r services/${{ matrix.service }}/
+
+      - name: Run tests
+        run: |
+          cd services/${{ matrix.service }}
+          python -m unittest discover -s tests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build Docker image
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          context: services/${{ matrix.service }}
+          tags: |
+            ${{ github.repository_owner }}/${{ matrix.service }}:latest
+            ${{ github.repository_owner }}/${{ matrix.service }}:${{ github.run_number }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          severity: 'CRITICAL,HIGH'
+          scan-type: 'image'
+          image-ref: ${{ github.repository_owner }}/${{ matrix.service }}:latest
+          exit-code: '1'
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Push Docker image
+        run: docker push ${{ github.repository_owner }}/${{ matrix.service }}:latest
+
