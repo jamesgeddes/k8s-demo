@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dynamic-services
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/$REPO_URL.git
+        revision: HEAD
+        directories:
+          - path: services/*
+          - path: cluster-components/*
+  template:
+    metadata:
+      name: '{{path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://github.com/$REPO_URL.git'
+        targetRevision: HEAD
+        path: '{{path.basename}}'
+      destination:
+        server: 'https://kubernetes.default.svc'
+        namespace: '{{path.basename}}'
