@@ -1,16 +1,8 @@
 from flask import Flask, request
-import requests
-from os import getenv
-from dotenv import load_dotenv
 from datetime import datetime
-
-load_dotenv()
+import requests
 
 app = Flask(__name__)
-
-if not getenv('CAT_API_KEY'):
-    raise EnvironmentError("The CAT_API_KEY environment variable must be set.")
-
 
 @app.route('/hellocat')
 def hello_cats():
@@ -22,11 +14,12 @@ def hello_cats():
         header_html += f"<li>{k}: {v}</li>"
 
     try:
-        api_key = getenv('CAT_API_KEY')
-        response = requests.get('https://api.thecatapi.com/v1/images/search', headers={'x-api-key': api_key})
-        json_response = response.json()
-        cat_image_url = json_response[0]['url']
-        cat_html = f'<img src="{cat_image_url}" alt="Random Cat" />'
+        response = requests.get('https://cataas.com/cat')
+        if response.status_code == 200:
+            cat_image_url = response.url
+            cat_html = f'<img src="{cat_image_url}" alt="Random Cat" />'
+        else:
+            raise Exception("Non-successful response code received.")
     except Exception as e:
         print(f"An error occurred: {e}")
         cat_html = """<pre>
@@ -46,6 +39,5 @@ def hello_cats():
         </body>
     </html>"""
 
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80)
+    app.run(host='0.0.0.0', port=8080)
