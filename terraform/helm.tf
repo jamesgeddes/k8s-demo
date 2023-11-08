@@ -1,5 +1,5 @@
 resource "helm_release" "argocd" {
-  name       = "argocd"
+  name       = "${local.resource_prefix}-argocd"
   namespace  = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
@@ -7,7 +7,7 @@ resource "helm_release" "argocd" {
 
   set {
     name  = "server.admin.password"
-    value = pas
+    value = data.hcp_vault_secrets_secret.ARGOCD_ADMIN_PASSWORD.secret_value
   }
   set {
     name  = "server.admin.passwordMtime"
