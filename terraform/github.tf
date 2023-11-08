@@ -1,5 +1,5 @@
 resource "github_repository_environment" "environments" {
-  for_each = toset(var.environments)
+  for_each = toset(var.list_of_environments)
 
   environment = each.value
   repository  = data.github_repository.current.name
@@ -12,14 +12,14 @@ resource "github_repository_environment" "environments" {
 }
 
 resource "random_password" "argocd_admin_password" {
-  for_each = toset(var.environments)
+  for_each = toset(var.list_of_environments)
 
   length  = 16
   special = true
 }
 
 resource "github_actions_environment_secret" "argocd_admin_password" {
-  for_each = toset(var.environments)
+  for_each = toset(var.list_of_environments)
 
   environment     = each.value
   secret_name     = "TF_VAR_ARGOCD_ADMIN_PASSWORD"
