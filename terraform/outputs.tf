@@ -17,3 +17,7 @@ output "cluster_name" {
   description = "Kubernetes Cluster Name"
   value       = module.eks.cluster_name
 }
+
+output "lb_url" {
+  value = "this should be the URL where one can access the site" # TODO add a load balancer and its output
+}
