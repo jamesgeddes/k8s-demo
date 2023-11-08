@@ -22,9 +22,11 @@ jobs:
             echo "TF_VAR_repo_owner=$(echo ${{ github.repository_owner }}"
             echo "TF_VAR_dockerhub_namespace=$(echo ${{ github.repository_owner }}"
             echo "TF_VAR_project=$(echo ${{ github.event.repository.name }}"
-            echo "TF_VAR_ARGOCD_ADMIN_PASSWORD=$(echo ${{ secrets.TF_VAR_ARGOCD_ADMIN_PASSWORD }}"
             echo "TF_VAR_services=$(ls services)"
             echo "REPO=$(echo ${{ github.repository }}"
+            echo "DOCKER_USERNAME=$(echo ${{ github.repository }}"
+            echo "DOCKER_PASSWORD=$(echo ${{ github.repository }}"
+          
           } >> $GITHUB_ENV
       - name: Set matrix for next job
         id: set-matrix
@@ -51,7 +53,6 @@ jobs:
 
       - name: Replace Variables in ApplicationSet File
         run: envsubst < argocd/application-set-template.yaml > argocd/application-set.yaml
-
 
       - name: Run Terraform plan
         run: |
