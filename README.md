@@ -9,7 +9,8 @@ A simple demonstration of the deployment of a Kubernetes cluster to AWS.
 
 ## Solution
 
-This configuration creates an EKS cluster on AWS and deploys NGINX to it, all using Terraform. 
+This configuration creates an EKS cluster on AWS and deploys ArgoCD to it, all using Terraform.
+ArgoCD is then configured to deploy all the services in the services directory.
 Documentation is available in [docs](docs).
 
 ## Foolish assumptions
@@ -18,15 +19,6 @@ This demo assumes that you know satisfactorily comfortable with,
 - AWS
 - Setting Terraform up for your AWS account
 - Kubernetes
-
-## Basic Use
-
-1. Create a workspace `terraform workspace new test`
-2. Apply the config `terraform apply -var-file $(terraform workspace show).tfvars`
-3. Grab a [cuppa](https://youtu.be/UksDKoCqbd4)
-4. Whabam! Stare at your AWS console in awe and wonder as a brand new EKS cluster magically 
-   appears before your very eyes. Ooo. Aaaa.
-5. Destroy the cluster before it empties your bank account. `terraform destroy`
 
 
 ## Details
