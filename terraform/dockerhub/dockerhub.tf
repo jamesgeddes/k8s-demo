@@ -1,5 +1,5 @@
 resource "dockerhub_repository" "services" {
-  for_each = local.services
+  for_each = local.services_list
 
   name             = "${var.project}-${each.value}"
   namespace        = var.dockerhub_namespace
