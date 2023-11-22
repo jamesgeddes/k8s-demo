@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   TF_VAR_repo_owner: ${{ github.repository_owner }}
   TF_VAR_dockerhub_namespace: ${{ github.repository_owner }}
