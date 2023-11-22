@@ -1,0 +1,5 @@
+provider "dockerhub" {
+}
+
+provider "aws" {
+}
