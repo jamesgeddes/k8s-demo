@@ -1,12 +1,12 @@
 resource "hcp_vault_secrets_app" "services" {
   for_each    = local.services_list
   app_name    = "${local.resource_prefix}-${each.value}"
-  description = data.github_repository.current.description
+  description = "Secrets for ${each.value}"
 }
 
 resource "hcp_vault_secrets_app" "common" {
   app_name    = "${local.resource_prefix}-common"
-  description = data.github_repository.current.description
+  description = "Secrets for all services in ${var.project}"
 }
 
 resource "hcp_vault_secrets_secret" "argocd_admin_password" {

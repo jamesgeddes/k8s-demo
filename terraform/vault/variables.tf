@@ -6,10 +6,6 @@ variable "project" {
   description = "The name of this project"
 }
 
-variable "repo_owner" {
-  description = "The org or individual who owns this repo"
-}
-
 variable "services" {
   description = "JSON array of services"
   type        = string
