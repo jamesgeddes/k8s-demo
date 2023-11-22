@@ -45,12 +45,12 @@ jobs:
       - list-services
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 20
+      max-parallel: 1
       matrix:
         module: [
+          "dockerhub",
           "hcp",
           "vault",
-          "dockerhub",
           # "iam",
           # "networking",
         ]
@@ -90,7 +90,7 @@ jobs:
       - name: test tf plan
         uses: instrumenta/conftest-action@master
         with:
-          files: plan.tfplan
+          files: terraform/${{ matrix.module }}/plan.tfplan
 
       - name: Terraform Apply
         run: |
