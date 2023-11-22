@@ -1,0 +1,35 @@
+name: Scheduled Terraform Destroy
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  terraform-destroy:
+    runs-on: ubuntu-latest
+    if: ${{ vars.ACTIVE }} == 'TRUE'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Destroy Terraform Modules
+        run: |
+          for dir in ./terraform/*; do
+            if [ -d "$dir" ]; then
+              echo "Destroying Terraform module in $dir"
+              cd $dir
+              terraform init
+              terraform plan -destroy -out=plan.tfplan
+              terraform apply plan.tfplan
+              cd - # Return to the root directory
+            fi
+          done
+
+      - name: Set infra activation flag
+        run: |
+          gh variable set ACTIVE --body "FALSE"
