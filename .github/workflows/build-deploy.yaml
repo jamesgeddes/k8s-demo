@@ -40,7 +40,7 @@ jobs:
 
 
   build-base-infra:
-    # Simultaneously build all the underlying infra that the cluster will need to operate
+    # Build all the underlying infra that the cluster will need to operate
     needs:
       - list-services
     runs-on: ubuntu-latest
@@ -86,11 +86,12 @@ jobs:
             -backend-config="key=${{ github.event.repository.name }}/${{ matrix.module }}/terraform.tfstate"
 
           terraform plan -out=plan.tfplan -input=false
+          terraform show -no-color -json plan.tfplan > tfplan.json
 
       - name: test tf plan
         uses: instrumenta/conftest-action@master
         with:
-          files: terraform/${{ matrix.module }}/plan.tfplan
+          files: terraform/${{ matrix.module }}/tfplan.json
 
       - name: Terraform Apply
         run: |
