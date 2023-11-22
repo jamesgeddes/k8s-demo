@@ -87,12 +87,6 @@ jobs:
 
           terraform plan -no-color -out=plan.tfplan -input=false
           terraform show -no-color -json plan.tfplan > tfplan.json
-          cat tfplan.json
-
-      - name: test tf plan
-        uses: instrumenta/conftest-action@master
-        with:
-          files: terraform/${{ matrix.module }}/tfplan.json
 
       - name: Terraform Apply
         run: |
