@@ -7,16 +7,15 @@ on:
       - main
 
 env:
-  TF_VAR_repo_owner=${{ github.repository_owner }}
-  TF_VAR_state_bucket=
-  TF_VAR_dockerhub_namespace=${{ github.repository_owner }}
-  TF_VAR_project=${{ github.event.repository.name }}
-  TF_VAR_gtld="net"
-  REPO=${{ github.repository }})
-  DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-  DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}
-  HCP_CLIENT_ID=${{ secrets.HCP_CLIENT_ID }}
-  HCP_CLIENT_SECRET=${{ secrets.HCP_CLIENT_SECRET }}
+  TF_VAR_repo_owner: ${{ github.repository_owner }}
+  TF_VAR_dockerhub_namespace: ${{ github.repository_owner }}
+  TF_VAR_project: ${{ github.event.repository.name }}
+  TF_VAR_gtld: "net"
+  REPO: ${{ github.repository }}
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  HCP_CLIENT_ID: ${{ secrets.HCP_CLIENT_ID }}
+  HCP_CLIENT_SECRET: ${{ secrets.HCP_CLIENT_SECRET }}
 
 jobs:
 
