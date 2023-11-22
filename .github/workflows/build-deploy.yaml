@@ -70,8 +70,6 @@ jobs:
 
       - name: Set additional vars
         run: |
-          TF_VAR_services=${{ needs.list-services.outputs.services }}
-          TF_VAR_bucket_key="${{ github.event.repository.name }}/${{ matrix.module }}/terraform.tfstate"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -79,6 +77,8 @@ jobs:
           terraform_version: "1.6.0"
 
       - name: Terraform Init and Plan
+        env:
+          TF_VAR_services: ${{ needs.list-services.outputs.services }}
         run: |
           cd terraform/${{ matrix.module }}
           terraform init \
