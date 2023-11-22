@@ -8,7 +8,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 env:
   TF_VAR_repo_owner: ${{ github.repository_owner }}
