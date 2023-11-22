@@ -45,6 +45,7 @@ jobs:
       - list-services
     runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       matrix:
         module: [
           "hcp",
