@@ -34,6 +34,10 @@ jobs:
         with:
           sparse-checkout: 'services'
 
+      - name: Set active var
+        run: |
+          gh variable set ACTIVE --body "TRUE"
+
       - name: List services
         id: set-matrix
         run: |
@@ -69,8 +73,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
 
       - name: Set additional vars
-        run:
-          gh variable set ACTIVE --body "TRUE"
+        run: |
           TF_VAR_services=${{ needs.list-services.outputs.services }}
           TF_VAR_bucket_key="${{ github.event.repository.name }}/${{ matrix.module }}/terraform.tfstate"
 
