@@ -12,8 +12,3 @@ variable "dockerhub_namespace" {
   description = "The DockerHub namespace in which containers will be published"
   type        = string
 }
-
-variable "state_bucket" {
-  description = "The Terraform state bucket in S3"
-  type        = string
-}
