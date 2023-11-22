@@ -1,82 +1,110 @@
 name: Build, scan & publish all of the things.
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
 
+env:
+  TF_VAR_repo_owner=${{ github.repository_owner }}
+  TF_VAR_state_bucket=
+  TF_VAR_dockerhub_namespace=${{ github.repository_owner }}
+  TF_VAR_project=${{ github.event.repository.name }}
+  TF_VAR_gtld="net"
+  REPO=${{ github.repository }})
+  DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD=${{ secrets.DOCKER_PASSWORD }}
+  HCP_CLIENT_ID=${{ secrets.HCP_CLIENT_ID }}
+  HCP_CLIENT_SECRET=${{ secrets.HCP_CLIENT_SECRET }}
+
 jobs:
-  prepare-vars:
-    # Prepare the variables that will be required by subsequent jobs
+
+
+  list-services:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      services: ${{ steps.set-matrix.outputs.services }}
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           sparse-checkout: 'services'
-      - name: Set env variables
-        run: |
-          {
-            echo "TF_VAR_repo_owner=$(echo ${{ github.repository_owner }}"
-            echo "TF_VAR_dockerhub_namespace=$(echo ${{ github.repository_owner }}"
-            echo "TF_VAR_project=$(echo ${{ github.event.repository.name }}"
-            echo "TF_VAR_services=$(ls services)"
-            echo "REPO=$(echo ${{ github.repository }}"
-            echo "DOCKER_USERNAME=$(echo ${{ github.repository }}"
-            echo "DOCKER_PASSWORD=$(echo ${{ github.repository }}"
-          
-          } >> $GITHUB_ENV
-      - name: Set matrix for next job
+
+      - name: List services
         id: set-matrix
-        run: echo "::set-output name=matrix::${{ env.TF_VAR_services }}"
+        run: |
+          services=$(ls services/* -d | xargs -n 1 basename | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "services=${services}" >> $GITHUB_OUTPUT
 
 
-  build-infra:
-    # Build the infra that the services will need to operate
-    needs: prepare-vars
+  build-base-infra:
+    # Simultaneously build all the underlying infra that the cluster will need to operate
+    needs:
+      - list-services
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: [
+          "hcp",
+          "vault",
+          "dockerhub",
+          # "iam",
+          # "networking",
+        ]
 
     steps:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          sparse-checkout: |
-            terraform
-            argocd
+          sparse-checkout: 'terraform/${{ matrix.module }}'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: 'eu-west-2'
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
+      - name: Set additional vars
+        run:
+          gh variable set ACTIVE --body "TRUE"
+          TF_VAR_services=${{ needs.list-services.outputs.services }}
+          TF_VAR_bucket_key="${{ github.event.repository.name }}/${{ matrix.module }}/terraform.tfstate"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: "1.6.0"
 
-      - name: Replace Variables in ApplicationSet File
-        run: envsubst < argocd/application-set-template.yaml > argocd/application-set.yaml
-
-      - name: Run Terraform plan
+      - name: Terraform Init and Plan
         run: |
-          cd terraform
-          terraform init
-          terraform plan -no-color -out=tfplan
-          terraform show -no-color -json tfplan > tfplan.json
+          cd terraform/${{ matrix.module }}
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ github.event.repository.name }}/${{ matrix.module }}/terraform.tfstate" \
 
-      - name: Test Terraform plan
+          terraform plan -out=plan.tfplan
+
+      - name: test tf plan
         uses: instrumenta/conftest-action@master
         with:
-          files: terraform/tfplan.json
+          files: plan.tfplan
 
-      - name: Apply Terraform plan
+      - name: Terraform Apply
         run: |
-          terraform apply terraform/tfplan
+          cd terraform/${{ matrix.module }}
+          terraform apply "plan.tfplan"
+
 
   build-services:
     # Build the containers that will run the services
-    needs: build-infra
+    needs:
+      - build-base-infra
+      - list-services
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{fromJson(needs.prepare.outputs.matrix)}}
+        service: ${{fromJson(needs.list-services.outputs.services)}}
 
     steps:
       - name: Check out code
@@ -84,10 +112,14 @@ jobs:
         with:
           sparse-checkout: 'services/${{ matrix.service }}'
 
+      - name: set env var
+        run: |
+          TF_VAR_services=$(ls services)
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
-          python-version-file: 'services/.python-version'
+          python-version-file: 'services/${{ matrix.service }}/.python-version'
 
       - name: Install dependencies
         run: |
@@ -114,23 +146,70 @@ jobs:
         with:
           context: services/${{ matrix.service }}
           tags: |
-            ${{ github.repository_owner }}/${{ matrix.service }}:latest
-            ${{ github.repository_owner }}/${{ matrix.service }}:${{ github.run_number }}
+            ${{ github.repository }}-${{ matrix.service }}:latest
+            ${{ github.repository }}-${{ matrix.service }}:${{ github.run_number }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           severity: 'CRITICAL,HIGH'
           scan-type: 'image'
-          image-ref: ${{ github.repository_owner }}/${{ matrix.service }}:latest
+          image-ref: ${{ github.repository }}-${{ matrix.service }}:latest
           exit-code: '1'
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v1
         with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push Docker image
-        run: docker push ${{ github.repository_owner }}/${{ matrix.service }}:latest
+        run: |
+          docker push ${{ github.repository }}-${{ matrix.service }}:latest
+          docker push ${{ github.repository }}-${{ matrix.service }}:${{ github.run_number }}
 
+  deploy-k8s:
+    # Spin up a k8s cluster and then configure ArgoCD to deploy the services
+    needs: build-services
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: set env var
+        run: |
+          TF_VAR_services=${{fromJson(needs.list-services.outputs.matrix)}}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: 'eu-west-2'
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: "1.6.0"
+
+      - name: Replace Variables in ApplicationSet File
+        run: envsubst < argocd/application-set-template.yaml > argocd/application-set.yaml
+
+      - name: Process Terraform Modules
+        run: |
+          modules=(
+            "k8s-cluster"
+            "k8s-services"
+          )
+          
+          for module in "${modules[@]}"; do
+            echo "Processing Terraform module: $module"
+            module_path="terraform/$module"
+            plan_path="$module_path/plan.tfplan"
+          
+            cd $module_path
+            terraform init
+            terraform plan -out=$plan_path
+            terraform apply "$plan_path"
+            cd -
+          done
