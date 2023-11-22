@@ -6,9 +6,7 @@ on:
     branches:
       - main
 
-permissions:
-  id-token: write
-  contents: write
+permissions: write-all
 
 env:
   TF_VAR_repo_owner: ${{ github.repository_owner }}
