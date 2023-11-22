@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: 'https://charts.jetstack.io'
-    targetRevision: v1.6.1  # replace with the version you intend to use
+    targetRevision: v1.6.1
     helm:
       name: cert-manager
   destination:
@@ -23,7 +23,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: your-email@example.com
+    email: mail@k8s-demo.net
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
@@ -41,6 +41,7 @@ spec:
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
-  commonName: your-domain.example.com
+  commonName: k8s-demo.net
   dnsNames:
-    - your-domain.example.com
+    - k8s-demo.net
+    - k8s-demo.com
