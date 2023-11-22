@@ -8,8 +8,6 @@ on:
 jobs:
   terraform-destroy:
     runs-on: ubuntu-latest
-    if: ${{ vars.ACTIVE }} == 'TRUE'
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,7 +27,3 @@ jobs:
               cd - # Return to the root directory
             fi
           done
-
-      - name: Set infra activation flag
-        run: |
-          gh variable set ACTIVE --body "FALSE"
