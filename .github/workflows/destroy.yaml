@@ -5,12 +5,33 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+permissions: write-all
+
+env:
+  TF_VAR_repo_owner: ${{ github.repository_owner }}
+  TF_VAR_dockerhub_namespace: ${{ github.repository_owner }}
+  TF_VAR_project: ${{ github.event.repository.name }}
+  TF_VAR_gtld: "net"
+  REPO: ${{ github.repository }}
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  HCP_CLIENT_ID: ${{ secrets.HCP_CLIENT_ID }}
+  HCP_CLIENT_SECRET: ${{ secrets.HCP_CLIENT_SECRET }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   terraform-destroy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Check out code
         uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: 'eu-west-2'
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: ${{ github.event.repository.name }}-${{ matrix.module }}
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
@@ -22,7 +43,7 @@ jobs:
               echo "Destroying Terraform module in $dir"
               cd $dir
               terraform init
-              terraform plan -destroy -out=plan.tfplan
+              terraform plan -destroy -input=false -out=plan.tfplan
               terraform apply plan.tfplan
               cd - # Return to the root directory
             fi
