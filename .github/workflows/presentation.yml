@@ -3,7 +3,9 @@ name: GitHub Pages
 on:
   push:
     branches:
-      - main
+      - master
+
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: copy presentation
+      - name: copy deck
         run: |
           cp presentation/deck.md deck.md
 
