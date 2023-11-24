@@ -8,8 +8,9 @@ terraform {
     }
 
     hcp = {
-      source  = "hashicorp/hcp"
-      version = "~> 0.76.0"
+      source     = "hashicorp/hcp"
+      version    = "0.77.0"
+      project_id = var.hcp_project_id
     }
 
     random = {
