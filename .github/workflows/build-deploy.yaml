@@ -40,37 +40,26 @@ jobs:
           echo "services=${services}" >> $GITHUB_OUTPUT
 
 
-  build-base-infra:
+  deploy-prerequisites:
     # Build all the underlying infra that the cluster will need to operate
     needs:
       - list-services
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 1
-      matrix:
-        module: [
-          "dockerhub",
-          "hcp",
-          "vault",
-          # "iam",
-          # "networking",
-        ]
+    outputs:
+      s3_bucket_url: ${{ steps.set_output.outputs.artefacts_bucket_url }}
 
     steps:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-          sparse-checkout: 'terraform/${{ matrix.module }}'
+          sparse-checkout: 'terraform/prerequisites'
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: 'eu-west-2'
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: ${{ github.event.repository.name }}-${{ matrix.module }}
-
-      - name: Set additional vars
-        run: |
+          role-session-name: ${{ github.event.repository.name }}-${{ matrix.module }}-${{ github.run_number }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -81,7 +70,7 @@ jobs:
         env:
           TF_VAR_services: ${{ needs.list-services.outputs.services }}
         run: |
-          cd terraform/${{ matrix.module }}
+          cd terraform/prerequisites
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
             -backend-config="key=${{ github.event.repository.name }}/${{ matrix.module }}/terraform.tfstate"
@@ -91,14 +80,18 @@ jobs:
 
       - name: Terraform Apply
         run: |
-          cd terraform/${{ matrix.module }}
+          cd terraform/prerequisites
           terraform apply "plan.tfplan"
+
+      - name: Output S3 Bucket URL
+        id: set_output
+        run: echo "artefacts_bucket_url=$(terraform output -raw artefacts_bucket_url)" >> $GITHUB_OUTPUT
 
 
   build-services:
     # Build the containers that will run the services
     needs:
-      - build-base-infra
+      - deploy-prerequisites
       - list-services
     runs-on: ubuntu-latest
     strategy:
@@ -111,9 +104,12 @@ jobs:
         with:
           sparse-checkout: 'services/${{ matrix.service }}'
 
-      - name: set env var
-        run: |
-          TF_VAR_services=$(ls services)
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: 'eu-west-2'
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: ${{ github.event.repository.name }}-${{ matrix.module }}-${{ github.run_number }}
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
@@ -141,12 +137,16 @@ jobs:
 
       - name: Build Docker image
         id: docker_build
-        uses: docker/build-push-action@v2
-        with:
-          context: services/${{ matrix.service }}
-          tags: |
+        run: |
+          cd services/${{ matrix.service }}
+          docker build . \
+            --tag ${{ github.repository }}-${{ matrix.service }}:${{ github.run_number }} \
+            --build-arg ARTEFACTS_BUCKET_URL=${{fromJson(needs.deploy-prerequisites.outputs.artefacts_bucket_url)}} \
+            --build-arg AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
+            --build-arg AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }}
+          docker tag \
+            ${{ github.repository }}-${{ matrix.service }}:${{ github.run_number }} \
             ${{ github.repository }}-${{ matrix.service }}:latest
-            ${{ github.repository }}-${{ matrix.service }}:${{ github.run_number }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -167,7 +167,7 @@ jobs:
           docker push ${{ github.repository }}-${{ matrix.service }}:latest
           docker push ${{ github.repository }}-${{ matrix.service }}:${{ github.run_number }}
 
-  deploy-k8s:
+  deploy-cluster:
     # Spin up a k8s cluster and then configure ArgoCD to deploy the services
     needs: build-services
     runs-on: ubuntu-latest
@@ -175,16 +175,15 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-
-      - name: set env var
-        run: |
-          TF_VAR_services=${{fromJson(needs.list-services.outputs.matrix)}}
+        with:
+          sparse-checkout: 'terraform/cluster'
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: 'eu-west-2'
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: ${{ github.event.repository.name }}-${{ matrix.module }}-${{ github.run_number }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -194,21 +193,18 @@ jobs:
       - name: Replace Variables in ApplicationSet File
         run: envsubst < argocd/application-set-template.yaml > argocd/application-set.yaml
 
-      - name: Process Terraform Modules
+      - name: Terraform Init and Plan
+        env:
+          TF_VAR_services: ${{ needs.list-services.outputs.services }}
         run: |
-          modules=(
-            "k8s-cluster"
-            "k8s-services"
-          )
-          
-          for module in "${modules[@]}"; do
-            echo "Processing Terraform module: $module"
-            module_path="terraform/$module"
-            plan_path="$module_path/plan.tfplan"
-          
-            cd $module_path
-            terraform init
-            terraform plan -out=$plan_path
-            terraform apply "$plan_path"
-            cd -
-          done
+          cd terraform/cluster
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
+
+          terraform plan -no-color -out=plan.tfplan -input=false
+          terraform show -no-color -json plan.tfplan > tfplan.json
+
+      - name: Terraform Apply
+        run: |
+          cd terraform/cluster
+          terraform apply "plan.tfplan"
