@@ -6,7 +6,7 @@ terraform {
 }
 
 provider "hcp" {
-  project_id = var.hcp_project_id
+  project_id = module.hcp.hcp_project_id
 }
 
 module "grafana" {
