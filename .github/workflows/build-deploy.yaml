@@ -47,7 +47,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       s3_bucket_url: ${{ steps.set_output.outputs.artefacts_bucket_url }}
-
+    env:
+      module: prerequisites
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -59,7 +60,7 @@ jobs:
         with:
           aws-region: 'eu-west-2'
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: ${{ github.event.repository.name }}-${{ matrix.module }}-${{ github.run_number }}
+          role-session-name: ${{ github.event.repository.name }}-${{ env.module }}-${{ github.run_number }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -70,10 +71,10 @@ jobs:
         env:
           TF_VAR_services: ${{ needs.list-services.outputs.services }}
         run: |
-          cd terraform/prerequisites
+          cd terraform/${{ env.module }}
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
-            -backend-config="key=${{ github.event.repository.name }}/${{ matrix.module }}/terraform.tfstate"
+            -backend-config="key=${{ github.event.repository.name }}/${{ env.module }}/terraform.tfstate"
 
           terraform plan -no-color -out=plan.tfplan -input=false
           terraform show -no-color -json plan.tfplan > tfplan.json
@@ -109,7 +110,7 @@ jobs:
         with:
           aws-region: 'eu-west-2'
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: ${{ github.event.repository.name }}-${{ matrix.module }}-${{ github.run_number }}
+          role-session-name: ${{ github.event.repository.name }}-${{ matrix.service }}-${{ github.run_number }}
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
@@ -171,6 +172,8 @@ jobs:
     # Spin up a k8s cluster and then configure ArgoCD to deploy the services
     needs: build-services
     runs-on: ubuntu-latest
+    env:
+      module: cluster
 
     steps:
       - name: Check out code
@@ -183,7 +186,7 @@ jobs:
         with:
           aws-region: 'eu-west-2'
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: ${{ github.event.repository.name }}-${{ matrix.module }}-${{ github.run_number }}
+          role-session-name: ${{ github.event.repository.name }}-${{ env.module }}-${{ github.run_number }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -197,10 +200,10 @@ jobs:
         env:
           TF_VAR_services: ${{ needs.list-services.outputs.services }}
         run: |
-          cd terraform/cluster
+          cd terraform/${{ env.module }}
           terraform init \
-            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}"
-
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ github.event.repository.name }}/${{ env.module }}/terraform.tfstate"
           terraform plan -no-color -out=plan.tfplan -input=false
           terraform show -no-color -json plan.tfplan > tfplan.json
 
