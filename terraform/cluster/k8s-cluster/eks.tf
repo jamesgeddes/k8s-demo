@@ -5,8 +5,8 @@ module "eks" {
   cluster_name    = "${local.resource_prefix}-eks"
   cluster_version = var.kubernetes_version
 
-  vpc_id                         = data.aws_vpc.selected.id
-  subnet_ids                     = module.vpc.private_subnets
+  vpc_id                         = var.vpc_id
+  subnet_ids                     = var.private_subnet_ids
   cluster_endpoint_public_access = true
 
   eks_managed_node_group_defaults = {
@@ -29,7 +29,7 @@ module "eks" {
   fargate_profiles = {
     default = {
       name       = "default"
-      subnet_ids = module.vpc.private_subnets
+      subnet_ids = var.private_subnet_ids
       selectors = [
         {
           namespace = "default"
@@ -45,4 +45,3 @@ module "eks" {
   }
 
 }
-
