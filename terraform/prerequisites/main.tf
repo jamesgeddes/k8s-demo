@@ -6,7 +6,7 @@ terraform {
 }
 
 provider "hcp" {
-  project_id = module.hcp.hcp_project_id
+  project_id = module.hcp_project.hcp_project_id
 }
 
 module "grafana" {
@@ -15,14 +15,14 @@ module "grafana" {
   gtld    = var.gtld
 }
 
-module "hcp" {
-  source  = "./hcp"
+module "hcp_project" {
+  source  = "./hcp_project"
   project = var.project
 }
 
 module "vault" {
   source     = "./vault"
-  depends_on = [module.hcp]
+  depends_on = [module.hcp_project.hcp_project_id]
   providers = {
     hcp = hcp
   }
