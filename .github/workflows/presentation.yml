@@ -27,7 +27,7 @@ jobs:
 
       - name: copy deck
         run: |
-          cp presentation/deck.md deck.md
+          cp presentation/deck.md PITCHME.md
 
       - name: Install Node.js
         uses: actions/setup-node@v3
