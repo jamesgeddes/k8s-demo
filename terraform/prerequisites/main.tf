@@ -5,6 +5,10 @@ terraform {
   }
 }
 
+provider "hcp" {
+  project_id = var.hcp_project_id
+}
+
 module "grafana" {
   source  = "./grafana"
   project = var.project
@@ -19,13 +23,15 @@ module "hcp" {
 module "vault" {
   source     = "./vault"
   depends_on = [module.hcp]
+  providers = {
+    hcp = hcp
+  }
 
   for_each = toset(jsondecode(var.services))
 
-  project        = var.project
-  gtld           = var.gtld
-  hcp_project_id = var.hcp_project_id
-  service        = each.value
+  project = var.project
+  gtld    = var.gtld
+  service = each.value
 }
 
 module "dockerhub" {

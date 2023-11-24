@@ -1,6 +1,6 @@
 resource "hcp_vault_secrets_app" "services" {
   app_name    = "${local.resource_prefix}-${var.service}"
-  description = "Secrets for ${each.value}"
+  description = "Secrets for ${var.service}"
 }
 
 resource "hcp_vault_secrets_app" "common" {

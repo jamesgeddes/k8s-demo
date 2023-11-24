@@ -10,7 +10,6 @@ terraform {
     hcp = {
       source  = "hashicorp/hcp"
       version = "0.77.0"
-
     }
 
     random = {
@@ -19,8 +18,4 @@ terraform {
     }
 
   }
-}
-
-provider "hcp" {
-  project_id = var.hcp_project_id
 }
