@@ -1,7 +1,0 @@
-provider "aws" {
-
-}
-
-provider "hcp" {
-
-}

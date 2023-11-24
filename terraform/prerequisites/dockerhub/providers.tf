@@ -1,5 +1,0 @@
-provider "dockerhub" {
-}
-
-provider "aws" {
-}
