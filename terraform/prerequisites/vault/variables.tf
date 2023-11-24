@@ -7,8 +7,8 @@ variable "project" {
   description = "The name of this project"
 }
 
-variable "services" {
-  description = "JSON array of services"
+variable "service" {
+  description = "The name of the service that we are working with"
   type        = string
 }
 

@@ -1,6 +1,5 @@
 resource "hcp_vault_secrets_app" "services" {
-  for_each    = local.services_list
-  app_name    = "${local.resource_prefix}-${each.value}"
+  app_name    = "${local.resource_prefix}-${var.service}"
   description = "Secrets for ${each.value}"
 }
 

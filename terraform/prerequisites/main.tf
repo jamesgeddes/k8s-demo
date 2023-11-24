@@ -20,19 +20,23 @@ module "vault" {
   source     = "./vault"
   depends_on = [module.hcp]
 
+  for_each = toset(jsondecode(var.services))
+
   project        = var.project
   gtld           = var.gtld
   hcp_project_id = var.hcp_project_id
-  services       = var.services
+  service        = each.value
 }
 
 module "dockerhub" {
   source     = "./dockerhub"
   depends_on = [module.vault]
 
+  for_each = toset(jsondecode(var.services))
+
   dockerhub_namespace = var.dockerhub_namespace
   project             = var.project
-  services            = var.services
+  service             = each.value
 }
 
 module "iam" {

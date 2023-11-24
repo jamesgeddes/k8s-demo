@@ -1,5 +1,5 @@
-variable "services" {
-  description = "JSON array of services"
+variable "service" {
+  description = "The name of the service that we are working on"
   type        = string
 }
 
