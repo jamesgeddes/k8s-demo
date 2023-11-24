@@ -1,15 +1,10 @@
 terraform {
   required_version = "~> 1.3"
-  backend "s3" {
-    bucket = var.state_bucket
-    key    = var.project
-    region = var.region
-  }
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 4.46.0"
+      version = "5.26.0"
     }
 
     hcp = {
