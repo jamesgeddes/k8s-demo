@@ -4,6 +4,7 @@ import requests
 
 app = Flask(__name__)
 
+
 @app.route('/hellocat')
 def hello_cats():
     current_time = datetime.utcnow().isoformat() + 'Z'
@@ -14,7 +15,10 @@ def hello_cats():
         header_html += f"<li>{k}: {v}</li>"
 
     try:
-        response = requests.get('https://cataas.com/cat')
+        response = requests.get(
+            url='https://cataas.com/cat',
+            timeout=5
+        )
         if response.status_code == 200:
             cat_image_url = response.url
             cat_html = f'<img src="{cat_image_url}" alt="Random Cat" />'
@@ -39,5 +43,9 @@ def hello_cats():
         </body>
     </html>"""
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    app.run(
+        host='127.0.0.1',
+        port=8080
+    )
